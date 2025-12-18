@@ -1,162 +1,234 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+from utils.data_loader import load_and_process_data
+import modules.profit_optimizer as profit_optimizer
+import modules.inventory_bot as inventory_bot
+import modules.route_optimizer as route_optimizer
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(
-    page_title="Shiplytics | Profit Optimizer",
-    page_icon="🚢",
-    layout="wide"
-)
+# --- APP CONFIG ---
+st.set_page_config(page_title="Shiplytics | Logistics AI", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
-# --- 1. DATA LOADING & PROCESSING ---
-@st.cache_data
-def load_and_prep_data():
-    try:
-        # Load Data
-        orders = pd.read_csv('datasets/orders.csv')
-        costs = pd.read_csv('datasets/cost_breakdown.csv')
-        perf = pd.read_csv('datasets/delivery_performance.csv')
-        routes = pd.read_csv('datasets/routes_distance.csv')
-        
-        # Merging Strategy
-        # 1. Order + Costs
-        df = pd.merge(orders, costs, on='Order_ID')
-        # 2. Add Performance (Carrier info)
-        df = pd.merge(df, perf[['Order_ID', 'Carrier', 'Actual_Delivery_Days', 'Delivery_Status']], on='Order_ID')
-        # 3. Add Route info
-        df = pd.merge(df, routes[['Order_ID', 'Route', 'Distance_KM']], on='Order_ID')
-        
-        # --- PROFITABILITY ENGINE ---
-        # Calculate Total Operational Cost per Order
-        cost_cols = ['Fuel_Cost', 'Labor_Cost', 'Vehicle_Maintenance', 'Insurance', 
-                     'Packaging_Cost', 'Technology_Platform_Fee', 'Other_Overhead']
-        df['Total_Cost'] = df[cost_cols].sum(axis=1)
-        
-        # Net Profit = Revenue - Cost
-        df['Net_Profit'] = df['Order_Value_INR'] - df['Total_Cost']
-        
-        # Margin %
-        df['Margin_Percent'] = (df['Net_Profit'] / df['Order_Value_INR']) * 100
-        
-        return df
-    except FileNotFoundError as e:
-        return None
+# --- CUSTOM CSS FOR PROFESSIONAL LOOK ---
+st.markdown("""
+    <style>
+    /* Main styling */
+    .main {
+        padding: 2rem;
+    }
+    
+    /* Header styling */
+    h1 {
+        color: #1f77b4;
+        font-weight: 700;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #1f77b4;
+    }
+    
+    h2 {
+        color: #2c3e50;
+        font-weight: 600;
+        margin-top: 1.5rem;
+    }
+    
+    h3 {
+        color: #34495e;
+        font-weight: 500;
+        font-style: italic;
+        margin-bottom: 1rem;
+    }
+    
+    /* Metric styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1f77b4 0%, #2c3e50 100%);
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+        color: white;
+    }
+    
+    [data-testid="stSidebar"] .stRadio > label {
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    [data-testid="stSidebar"] .stRadio > div {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 0.5rem;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(90deg, #1f77b4 0%, #2980b9 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(31, 119, 180, 0.4);
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        border-bottom: 3px solid transparent;
+        color: #34495e;
+        font-weight: 600;
+        padding: 1rem 2rem;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        border-bottom: 3px solid #1f77b4;
+        color: #1f77b4;
+    }
+    
+    /* Card-like containers */
+    .block-container {
+        padding: 2rem 3rem;
+    }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    /* Selectbox styling */
+    .stSelectbox > div > div {
+        background-color: #ffffff;
+        border: 2px solid #d1d5db;
+        border-radius: 8px;
+    }
+    
+    .stSelectbox [data-baseweb="select"] {
+        background-color: #ffffff;
+    }
+    
+    .stSelectbox [data-baseweb="select"] > div {
+        background-color: #ffffff;
+        color: #1f2937;
+        font-weight: 500;
+    }
+    
+    .stSelectbox input {
+        color: #1f2937 !important;
+    }
+    
+    .stSelectbox div[role="button"] {
+        color: #1f2937 !important;
+    }
+    
+    /* Dropdown menu items */
+    [data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    
+    [data-baseweb="menu"] li {
+        color: #1f2937 !important;
+    }
+    
+    [data-baseweb="menu"] li:hover {
+        background-color: #f3f4f6 !important;
+    }
+    
+    /* Sidebar selectbox */
+    [data-testid="stSidebar"] .stSelectbox > div > div {
+        background-color: #ffffff !important;
+        border: 2px solid #e5e7eb !important;
+        border-radius: 8px;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] {
+        background-color: #ffffff !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        font-weight: 500;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox input {
+        color: #1f2937 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox div[role="button"] {
+        color: #1f2937 !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox label {
+        color: white !important;
+        font-weight: 600;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox [data-baseweb="select"] svg {
+        fill: #1f2937 !important;
+    }
+    
+    /* Alert styling */
+    .stAlert {
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    
+    /* Slider styling */
+    .stSlider > div > div > div {
+        background-color: #1f77b4;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-df = load_and_prep_data()
+# --- DATA LOADING (Centralized) ---
+df_profit, df_inventory, df_orders, df_routes = load_and_process_data()
 
-if df is None:
-    st.error("🚨 Error: CSV files not found. Please make sure all 7 CSV files are in the 'Shiplytics' folder.")
+if df_profit is None:
+    st.error("Critical Error: CSV files not found. Please check your folder.")
     st.stop()
 
-# --- SIDEBAR FILTERS ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2830/2830305.png", width=50)
-st.sidebar.title("Shiplytics Control")
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.markdown("""
+    <div style='text-align: center; padding: 1.5rem 0; margin-bottom: 2rem;'>
+        <h1 style='color: white; margin: 0; font-size: 2rem; border: none;'>SHIPLYTICS</h1>
+        <p style='color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;'>Logistics Intelligence Platform</p>
+    </div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown("<p style='color: white; font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem;'>Navigation</p>", unsafe_allow_html=True)
+page = st.sidebar.radio("Select Module", ["Vendor Profit Analysis", "Inventory Management", "Route Optimizer"], label_visibility="collapsed")
+
+# --- PAGE ROUTING ---
+if page == "Vendor Profit Analysis":
+    profit_optimizer.render_page(df_profit)
+    
+elif page == "Inventory Management":
+    inventory_bot.render_page(df_inventory, df_orders)
+    
+elif page == "Route Optimizer":
+    route_optimizer.render_page(df_routes)
+
+# --- VERSION INFO AT BOTTOM OF SIDEBAR ---
 st.sidebar.markdown("---")
-selected_route = st.sidebar.selectbox("📍 Select Route to Optimize", df['Route'].unique())
-
-# --- MAIN DASHBOARD ---
-st.title("💰 Shiplytics: Vendor Profit Optimizer")
-st.markdown("### *Identify bleeding routes and switch carriers to save costs instantly.*")
-st.markdown("---")
-
-# Filter Data Based on Selection
-route_df = df[df['Route'] == selected_route]
-
-# KPI ROW
-col1, col2, col3, col4 = st.columns(4)
-total_profit = route_df['Net_Profit'].sum()
-avg_margin = route_df['Margin_Percent'].mean()
-order_count = len(route_df)
-bleeding_orders = len(route_df[route_df['Net_Profit'] < 0])
-
-col1.metric("Total Route Profit", f"₹{total_profit:,.0f}", delta_color="normal")
-col2.metric("Avg Margin %", f"{avg_margin:.1f}%", delta="-2.4%" if avg_margin < 15 else "1.2%")
-col3.metric("Order Volume", order_count)
-col4.metric("Loss-Making Orders", bleeding_orders, delta_color="inverse")
-
-# --- TABBED INTERFACE ---
-tab1, tab2, tab3 = st.tabs(["📊 Carrier Analysis", "🤖 Switch Simulator", "📝 Data View"])
-
-# === TAB 1: CARRIER ANALYSIS ===
-with tab1:
-    st.subheader(f"Carrier Performance on {selected_route}")
-    
-    # Aggregate Data by Carrier
-    carrier_stats = route_df.groupby('Carrier').agg({
-        'Order_ID': 'count',
-        'Net_Profit': 'mean',
-        'Actual_Delivery_Days': 'mean',
-        'Margin_Percent': 'mean'
-    }).reset_index()
-    
-    # Scatter Plot: Cost vs Speed
-    fig = px.scatter(carrier_stats, x='Actual_Delivery_Days', y='Net_Profit',
-                     size='Order_ID', color='Carrier',
-                     title="Carrier Efficiency Matrix (Size = Volume)",
-                     labels={'Actual_Delivery_Days': 'Avg Delivery Time (Days)', 'Net_Profit': 'Avg Profit per Order (₹)'},
-                     hover_data=['Margin_Percent'])
-    
-    # Add Reference Lines
-    fig.add_hline(y=0, line_dash="dash", line_color="red", annotation_text="Break-even Point")
-    st.plotly_chart(fig, use_container_width=True)
-    
-    st.info("💡 **Insight:** Carriers below the red line are destroying value. Carriers in the top-left are your 'Stars' (Fast & Profitable).")
-
-# === TAB 2: SWITCH SIMULATOR ===
-with tab2:
-    st.subheader("🤖 AI Recommendation Engine")
-    
-    # Identify Best & Worst
-    try:
-        best_carrier = carrier_stats.sort_values('Net_Profit', ascending=False).iloc[0]
-        worst_carrier = carrier_stats.sort_values('Net_Profit', ascending=True).iloc[0]
-        
-        if len(carrier_stats) > 1:
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                st.error(f"📉 **Underperformer: {worst_carrier['Carrier']}**")
-                st.write(f"Avg Profit: **₹{worst_carrier['Net_Profit']:.2f}**")
-                st.write(f"Volume: {worst_carrier['Order_ID']} orders")
-                
-            with col_b:
-                st.success(f"📈 **Recommended Switch: {best_carrier['Carrier']}**")
-                st.write(f"Avg Profit: **₹{best_carrier['Net_Profit']:.2f}**")
-                st.write(f"Potential Uplift: **+₹{best_carrier['Net_Profit'] - worst_carrier['Net_Profit']:.2f}/order**")
-                
-            # The Simulation
-            st.markdown("#### 🛠️ Simulation Control")
-            if worst_carrier['Carrier'] != best_carrier['Carrier']:
-                percent_switch = st.slider(f"Shift volume from {worst_carrier['Carrier']} to {best_carrier['Carrier']}", 0, 100, 50)
-                
-                # Calculate Impact
-                orders_to_move = int(worst_carrier['Order_ID'] * (percent_switch / 100))
-                profit_gain_per_order = best_carrier['Net_Profit'] - worst_carrier['Net_Profit']
-                total_savings = orders_to_move * profit_gain_per_order
-                
-                st.markdown(f"""
-                <div style="padding: 20px; background-color: #d4edda; border-radius: 10px; border: 1px solid #c3e6cb;">
-                    <h3 style="color: #155724; margin:0;">💰 Projected Monthly Savings: ₹{total_savings:,.2f}</h3>
-                    <p style="color: #155724; margin:0;">By moving <b>{orders_to_move} orders</b>, you improve total route margin by significantly.</p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.warning("Only one carrier operates on this route. No switching opportunities available.")
-            
-    except Exception as e:
-        st.write("Not enough data to generate recommendations for this route.")
-
-# === TAB 3: DATA VIEW ===
-with tab3:
-    st.subheader("Raw Data Breakdown")
-    # Conditional Formatting for Dataframe
-    def color_negative_red(val):
-        color = 'red' if val < 0 else 'green'
-        return f'color: {color}'
-
-    display_cols = ['Order_ID', 'Carrier', 'Net_Profit', 'Margin_Percent', 'Actual_Delivery_Days']
-    try:
-        st.dataframe(route_df[display_cols].style.map(color_negative_red, subset=['Net_Profit', 'Margin_Percent']))
-    except:
-        st.dataframe(route_df[display_cols]) # Fallback if style fails
+st.sidebar.markdown("""
+    <div style='padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px; margin-top: 2rem; text-align: center;'>
+        <p style='color: rgba(255,255,255,0.95); font-size: 0.9rem; margin: 0; font-weight: 500;'>
+            Developed By<br>
+            <strong style='font-size: 1.1rem;'>Soumik Roy</strong>
+        </p>
+    </div>
+""", unsafe_allow_html=True)
