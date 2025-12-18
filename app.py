@@ -14,10 +14,10 @@ st.set_page_config(
 def load_and_prep_data():
     try:
         # Load Data
-        orders = pd.read_csv('orders.csv')
-        costs = pd.read_csv('cost_breakdown.csv')
-        perf = pd.read_csv('delivery_performance.csv')
-        routes = pd.read_csv('routes_distance.csv')
+        orders = pd.read_csv('datasets/orders.csv')
+        costs = pd.read_csv('datasets/cost_breakdown.csv')
+        perf = pd.read_csv('datasets/delivery_performance.csv')
+        routes = pd.read_csv('datasets/routes_distance.csv')
         
         # Merging Strategy
         # 1. Order + Costs
