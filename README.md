@@ -440,7 +440,7 @@ CSV Files → Pandas DataFrames → Data Validation → Merging
 
 ### Step 1: Clone or Download Repository
 ```bash
-# Clone repository
+# Clone repository okay
 git clone <repository-url>
 cd Shiplytics
 
@@ -595,45 +595,13 @@ http://localhost:8501
 ✅ Gradient-styled metric cards  
 ✅ Multi-axis charts  
 ✅ Dynamic filtering  
-✅ Color-coded status indicators  
-
-### Best Practices
-✅ DRY (Don't Repeat Yourself) principle  
-✅ Separation of concerns  
-✅ Clear function naming  
-✅ Comprehensive documentation  
-✅ User-friendly interface  
-✅ Professional styling  
-
----
-
-## 🎓 Learning Outcomes
-
-This project demonstrates:
-- **Data Analysis:** Multi-dataset integration and insight generation
-- **Problem Solving:** Real-world business challenge resolution
-- **Technical Skills:** Python, Streamlit, Plotly, Pandas
-- **UI/UX Design:** Professional, user-friendly interfaces
-- **Business Acumen:** Understanding logistics domain challenges
-- **Innovation:** Creative solutions to operational problems
-
----
-
-## 📄 License
-
-This project was developed as part of the Logistics Innovation Challenge.
+✅ Color-coded status indicators    
 
 ---
 
 ## 👨‍💻 Developer
 
 **Developed By: Soumik Roy**
-
-### Project Info
-- **Project:** Shiplytics - Logistics Intelligence Platform
-- **Challenge:** Logistics Innovation Challenge
-- **Domain:** Supply Chain & Logistics Analytics
-- **Year:** 2025
 
 ### Technologies Demonstrated
 - Python Programming
@@ -642,34 +610,10 @@ This project was developed as part of the Logistics Innovation Challenge.
 - Business Intelligence
 - UI/UX Design
 
----
-
-## 🙏 Acknowledgments
-
-Special thanks to:
-- **NexGen Logistics Pvt. Ltd.** - For the business case
-- **Streamlit Community** - For excellent documentation
-- **Plotly Team** - For powerful visualization tools
-
----
-
-## 📞 Support
-
-For questions or feedback:
-- Review the code documentation
-- Check Streamlit documentation: https://docs.streamlit.io
-- Explore Plotly documentation: https://plotly.com/python
-
----
-
 <div align="center">
 
 ### 🌟 Built with Innovation, Powered by Data 🌟
 
 **Transforming Logistics, One Insight at a Time**
-
----
-
-*Shiplytics © 2025*
 
 </div>
