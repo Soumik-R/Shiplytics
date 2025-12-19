@@ -17,7 +17,7 @@ def render_page(df_profit):
     
     # 2. KPI Section with enhanced styling
     st.markdown("<div style='margin: 2rem 0;'>", unsafe_allow_html=True)
-    st.markdown("#### Key Performance Indicators")
+    st.markdown("<h4 style='text-align: center;'>Key Performance Indicators</h4>", unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
     
     total_profit = route_df['Net_Profit'].sum()

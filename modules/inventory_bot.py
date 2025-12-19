@@ -44,7 +44,7 @@ def render_page(df_inventory, df_orders):
     overstock_count = len(cat_data[cat_data['Status'] == 'Overstocked'])
     healthy_count = len(cat_data[cat_data['Status'] == 'Healthy'])
     
-    st.markdown("#### Inventory Status Overview")
+    st.markdown("<h4 style='text-align: center;'>Inventory Status Overview</h4>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     
     with col1:

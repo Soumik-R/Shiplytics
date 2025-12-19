@@ -42,7 +42,7 @@ def parse_route_data(df_routes):
     
     return pd.DataFrame(route_stats)
 
-def render_page(df_routes):
+def render_page(df_routes, df_vehicles):
     # Header with professional styling
     st.markdown("""<h1 style='text-align: center;'>Smart Route Optimizer</h1>""", unsafe_allow_html=True)
     st.markdown("""<p style='font-size: 1.1rem; color: #7f8c8d; margin-bottom: 2rem; text-align: center;'>Find the shortest, most efficient, and cost-effective delivery routes</p>""", unsafe_allow_html=True)
@@ -66,7 +66,7 @@ def render_page(df_routes):
         available_cities = sorted(all_cities)
     
     # City selection
-    st.markdown("#### Route Selection")
+    st.markdown("<h4 style='text-align: center;'>Route Selection</h4>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -140,6 +140,140 @@ def render_page(df_routes):
             """.format(shortest['Traffic_Delay_Minutes']), unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # VEHICLE RECOMMENDATION SECTION
+        st.markdown("#### 🚛 Smart Vehicle Recommendation")
+        st.markdown("<p style='color: #7f8c8d; margin-bottom: 1.5rem;'>AI-powered vehicle selection based on route distance, fuel efficiency, and emissions</p>", unsafe_allow_html=True)
+        
+        # Calculate vehicle suitability scores
+        distance = shortest['Distance_KM']
+        fuel_needed = shortest['Fuel_Consumption_L']
+        
+        # Filter available vehicles
+        available_vehicles = df_vehicles[df_vehicles['Status'] == 'Available'].copy()
+        
+        if len(available_vehicles) > 0:
+            # Calculate efficiency scores
+            available_vehicles['Fuel_Cost'] = (distance / available_vehicles['Fuel_Efficiency_KM_per_L']) * 100  # ₹100 per liter
+            available_vehicles['CO2_Total'] = available_vehicles['CO2_Emissions_Kg_per_KM'] * distance
+            available_vehicles['Age_Score'] = 10 - available_vehicles['Age_Years']  # Newer is better
+            
+            # Normalize and calculate composite score (lower is better)
+            available_vehicles['Efficiency_Score'] = (
+                (available_vehicles['Fuel_Cost'] / available_vehicles['Fuel_Cost'].max() * 0.4) +
+                (available_vehicles['CO2_Total'] / available_vehicles['CO2_Total'].max() * 0.4) +
+                (1 - available_vehicles['Age_Score'] / 10 * 0.2)
+            )
+            
+            # Sort by efficiency score
+            available_vehicles = available_vehicles.sort_values('Efficiency_Score')
+            
+            # Get top 3 recommendations
+            top_vehicles = available_vehicles.head(3)
+            
+            # Display recommendations in cards
+            cols = st.columns(3)
+            for idx, (i, vehicle) in enumerate(top_vehicles.iterrows()):
+                with cols[idx]:
+                    if idx == 0:
+                        border_color = "#27ae60"  # Green for best
+                        badge = "🏆 BEST CHOICE"
+                    elif idx == 1:
+                        border_color = "#3498db"  # Blue for second
+                        badge = "⭐ GOOD"
+                    else:
+                        border_color = "#95a5a6"  # Gray for third
+                        badge = "✓ VIABLE"
+                    
+                    st.markdown(f"""
+                        <div style='padding: 1.5rem; background-color: #ffffff; border-left: 5px solid {border_color}; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+                            <p style='color: {border_color}; font-weight: 700; font-size: 0.85rem; margin: 0 0 1rem 0;'>{badge}</p>
+                            <p style='color: #2c3e50; font-size: 1.3rem; font-weight: 700; margin: 0.5rem 0;'>{vehicle['Vehicle_ID']}</p>
+                            <p style='color: #7f8c8d; font-size: 0.9rem; margin: 0 0 1rem 0;'>{vehicle['Vehicle_Type'].replace('_', ' ')}</p>
+                            <hr style='margin: 0.5rem 0; border: none; border-top: 1px solid #ecf0f1;'>
+                            <p style='color: #34495e; font-size: 0.85rem; margin: 0.3rem 0;'><strong>Capacity:</strong> {vehicle['Capacity_KG']:.0f} kg</p>
+                            <p style='color: #34495e; font-size: 0.85rem; margin: 0.3rem 0;'><strong>Fuel Cost:</strong> ₹{vehicle['Fuel_Cost']:.0f}</p>
+                            <p style='color: #34495e; font-size: 0.85rem; margin: 0.3rem 0;'><strong>CO2:</strong> {vehicle['CO2_Total']:.1f} kg</p>
+                            <p style='color: #34495e; font-size: 0.85rem; margin: 0.3rem 0;'><strong>Location:</strong> {vehicle['Current_Location']}</p>
+                            <p style='color: #34495e; font-size: 0.85rem; margin: 0.3rem 0;'><strong>Efficiency:</strong> {vehicle['Fuel_Efficiency_KM_per_L']:.1f} km/L</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Cost & Emission Comparison
+            st.markdown("##### 💰 Cost & Environmental Impact Comparison")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                # Cost comparison chart
+                import plotly.express as px
+                cost_comparison = top_vehicles[['Vehicle_ID', 'Fuel_Cost']].copy()
+                cost_comparison['Savings'] = cost_comparison['Fuel_Cost'].max() - cost_comparison['Fuel_Cost']
+                
+                fig_cost = px.bar(
+                    cost_comparison,
+                    x='Vehicle_ID',
+                    y='Fuel_Cost',
+                    title='Fuel Cost Comparison',
+                    labels={'Fuel_Cost': 'Fuel Cost (₹)', 'Vehicle_ID': 'Vehicle'},
+                    color='Fuel_Cost',
+                    color_continuous_scale=['#27ae60', '#f39c12', '#e74c3c'],
+                    text='Fuel_Cost'
+                )
+                fig_cost.update_traces(texttemplate='₹%{text:.0f}', textposition='outside')
+                fig_cost.update_layout(showlegend=False, height=350)
+                st.plotly_chart(fig_cost, use_container_width=True)
+            
+            with col2:
+                # CO2 comparison chart
+                co2_comparison = top_vehicles[['Vehicle_ID', 'CO2_Total']].copy()
+                
+                fig_co2 = px.bar(
+                    co2_comparison,
+                    x='Vehicle_ID',
+                    y='CO2_Total',
+                    title='CO2 Emissions Comparison',
+                    labels={'CO2_Total': 'CO2 Emissions (kg)', 'Vehicle_ID': 'Vehicle'},
+                    color='CO2_Total',
+                    color_continuous_scale=['#27ae60', '#f39c12', '#e74c3c'],
+                    text='CO2_Total'
+                )
+                fig_co2.update_traces(texttemplate='%{text:.1f} kg', textposition='outside')
+                fig_co2.update_layout(showlegend=False, height=350)
+                st.plotly_chart(fig_co2, use_container_width=True)
+            
+            # Savings Summary
+            best_vehicle = top_vehicles.iloc[0]
+            worst_cost = available_vehicles['Fuel_Cost'].max()
+            savings = worst_cost - best_vehicle['Fuel_Cost']
+            co2_reduction = available_vehicles['CO2_Total'].max() - best_vehicle['CO2_Total']
+            
+            st.markdown(f"""
+                <div style='padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center; margin: 1.5rem 0;'>
+                    <p style='color: rgba(255,255,255,0.9); margin: 0; font-size: 1rem;'>🎯 POTENTIAL SAVINGS WITH {best_vehicle['Vehicle_ID']}</p>
+                    <div style='display: flex; justify-content: space-around; margin-top: 1.5rem;'>
+                        <div>
+                            <p style='color: white; font-size: 2.5rem; font-weight: 700; margin: 0;'>₹{savings:.0f}</p>
+                            <p style='color: rgba(255,255,255,0.8); margin: 0; font-size: 0.9rem;'>Cost Savings</p>
+                        </div>
+                        <div>
+                            <p style='color: white; font-size: 2.5rem; font-weight: 700; margin: 0;'>{co2_reduction:.1f} kg</p>
+                            <p style='color: rgba(255,255,255,0.8); margin: 0; font-size: 0.9rem;'>CO2 Reduction</p>
+                        </div>
+                        <div>
+                            <p style='color: white; font-size: 2.5rem; font-weight: 700; margin: 0;'>{(savings/worst_cost*100):.1f}%</p>
+                            <p style='color: rgba(255,255,255,0.8); margin: 0; font-size: 0.9rem;'>Efficiency Gain</p>
+                        </div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        else:
+            st.warning("⚠️ No vehicles currently available for this route. All fleet vehicles are in transit.")
+        
         st.markdown("---")
         
         # Show all available routes if multiple exist

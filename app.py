@@ -195,7 +195,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- DATA LOADING (Centralized) ---
-df_profit, df_inventory, df_orders, df_routes = load_and_process_data()
+df_profit, df_inventory, df_orders, df_routes, df_vehicles = load_and_process_data()
 
 if df_profit is None:
     st.error("Critical Error: CSV files not found. Please check your folder.")
@@ -220,7 +220,7 @@ elif page == "Inventory Management":
     inventory_bot.render_page(df_inventory, df_orders)
     
 elif page == "Route Optimizer":
-    route_optimizer.render_page(df_routes)
+    route_optimizer.render_page(df_routes, df_vehicles)
 
 # --- VERSION INFO AT BOTTOM OF SIDEBAR ---
 st.sidebar.markdown("---")

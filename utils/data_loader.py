@@ -10,6 +10,7 @@ def load_and_process_data():
         perf = pd.read_csv('datasets/delivery_performance.csv')
         routes = pd.read_csv('datasets/routes_distance.csv')
         inventory = pd.read_csv('datasets/warehouse_inventory.csv')
+        vehicles = pd.read_csv('datasets/vehicle_fleet.csv')
         
         # --- PROCESS PROFIT DATA ---
         # Merge: Orders + Costs + Performance + Routes
@@ -24,7 +25,7 @@ def load_and_process_data():
         df_profit['Net_Profit'] = df_profit['Order_Value_INR'] - df_profit['Total_Cost']
         df_profit['Margin_Percent'] = (df_profit['Net_Profit'] / df_profit['Order_Value_INR']) * 100
         
-        return df_profit, inventory, orders, routes
+        return df_profit, inventory, orders, routes, vehicles
         
     except FileNotFoundError:
-        return None, None, None, None
+        return None, None, None, None, None
